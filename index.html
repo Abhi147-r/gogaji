@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABHI AI - Assistant</title>
+    <style>
+        :root {
+            --bg: #0b0e16;
+            --panel: #141824;
+            --panel-alt: #1b2030;
+            --accent: #5b8cff;
+            --accent-hover: #7aa2ff;
+            --text: #eef1f8;
+            --text-dim: #8993ab;
+            --success: #31d0aa;
+            --error: #ff5c6c;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        
+        /* Floating Widget Container */
+        .chat-widget {
+            width: 100%; max-width: 400px; height: 100%; max-height: 600px;
+            background: var(--bg); display: flex; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--panel-alt);
+        }
+        @media(min-width: 450px) {
+            .chat-widget { height: 580px; }
+        }
+
+        /* Top Header */
+        .chat-header {
+            background: var(--panel); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 2px solid var(--accent);
+        }
+        .chat-title { font-weight: bold; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; display: inline-block; }
+
+        /* Animated Flow Canvas */
+        #flowCanvas { width: 100%; height: 40px; background: var(--panel); display: block; }
+
+        /* Chat Log Area */
+        .chat-messages {
+            flex: 1; background: #0a0d14; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 13px;
+        }
+        .message { padding: 10px 14px; border-radius: 8px; max-width: 85%; line-height: 1.4; word-break: break-word; }
+        .message.user { background: var(--panel-alt); color: var(--text); align-self: flex-end; }
+        .message.ai { background: #182035; color: #e3e8f5; align-self: flex-start; border: 1px solid #242e48; }
+        .message.system { color: var(--text-dim); text-align: center; font-size: 11px; align-self: center; }
+
+        /* Input Area */
+        .chat-input-row {
+            background: var(--bg); padding: 10px; display: flex; gap: 8px; border-top: 1px solid var(--panel-alt);
+        }
+        .chat-input-row input {
+            flex: 1; background: var(--panel); border: 1px solid var(--panel-alt); border-radius: 6px;
+            padding: 10px; color: var(--text); outline: none; font-size: 14px;
+        }
+        .chat-input-row input:focus { border-color: var(--accent); }
+        .chat-input-row button {
+            background: var(--accent); color: white; border: none; border-radius: 6px; padding: 0 16px;
+            font-weight: bold; cursor: pointer; transition: background 0.2s;
+        }
+        .chat-input-row button:hover { background: var(--accent-hover); }
+    </style>
+</head>
+<body>
+
+    <div class="chat-widget">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="chat-title">
+                <span class="status-dot"></span> ABHI AI
+            </div>
+            <span style="font-size: 12px; color: var(--text-dim);">Cloud Edition</span>
+        </div>
+
+        <!-- Animated Wave Strip -->
+        <canvas id="flowCanvas"></canvas>
+
+        <!-- Messages Box -->
+        <div class="chat-messages" id="chatMessages">
+            <div class="message ai">Hello! Main ABHI AI hoon. Aap mujhse coding, maths ya kuch bhi pooch sakte hain.</div>
+        </div>
+
+        <!-- Input Bar -->
+        <div class="chat-input-row">
+            <input type="text" id="userInput" placeholder="Yahan type karo..." autocomplete="off">
+            <button onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <script>
+        // Animated Canvas Background Strip
+        const canvas = document.getElementById('flowCanvas');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = 40;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let particles = Array.from({length: 12}, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 0.8,
+            r: Math.random() * 2 + 1
+        }));
+
+        function animateFlow() {
+            ctx.fillStyle = '#141824';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#5b8cff44';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            let t = Date.now() * 0.002;
+            for(let x = 0; x < canvas.width; x += 10) {
+                let y = 20 + Math.sin(x * 0.03 + t) * 8;
+                if(x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            particles.forEach(p => {
+                p.x += p.vx;
+                if(p.x < 0) p.x = canvas.width;
+                if(p.x > canvas.width) p.x = 0;
+                ctx.fillStyle = '#7aa2ff88';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            requestAnimationFrame(animateFlow);
+        }
+        animateFlow();
+
+        // Chat Messaging Logic
+        const inputField = document.getElementById('userInput');
+        const messagesContainer = document.getElementById('chatMessages');
+
+        inputField.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const text = inputField.value.trim();
+            if (!text) return;
+
+            appendMessage(text, 'user');
+            inputField.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            const loadingId = appendMessage('Thinking...', 'system');
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                
+                document.getElementById(loadingId).remove();
+
+                if (data.answer) {
+                    appendMessage(data.answer, 'ai');
+                } else {
+                    appendMessage(data.error || 'Kuch gadbad ho gayi.', 'system');
+                }
+            } catch (err) {
+                document.getElementById(loadingId).remove();
+                appendMessage('Server error: ' + err.message, 'system');
+            }
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function appendMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            const id = 'msg-' + Math.random().toString(36).substr(2, 9);
+            msgDiv.id = id;
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerText = text;
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return id;
+        }
+    </script>
+</body>
+</html>
